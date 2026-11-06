@@ -40,13 +40,13 @@ Tags: **[DECIDED]** committed · **[DEFAULT]** what we build unless told otherwi
 | Volume scaled on the device | [DEFAULT] | Encoder is on the device; instant feedback; amp has no volume control |
 | LLM: `claude-haiku-5-5` (thinking off, `LLM_MAX_OUTPUT_TOKENS` cap), behind a provider interface | [DECIDED] | Fast and cheap; short spoken answers don't need a bigger model |
 | STT + TTS: OpenAI speech-to-text and text-to-speech, behind provider interfaces | [DECIDED] | One account for both; PCM output suits the Pico |
+| TLS from the first network code: self-signed server cert, fingerprint pinned on the device, connection kept open between requests | [DECIDED] | Location and voice never travel in plain text; handshake cost only at boot |
 
 ### Owner to decide (can wait until the phase listed)
 
 | ID | Decision | Options | Recommendation | Needed by |
 |---|---|---|---|---|
 | D3 | GPS rate | A) 1 Hz default (no config) · B) 5 Hz (UBX config + faster baud) for better brake detection | Start A; try B in P3 calibration and keep whichever detects test stops better | P3 |
-| D4 | TLS approach | A) Self-signed cert, fingerprint pinned on device, no domain needed · B) Domain + Let's Encrypt, device checks CA | A (stronger, cheaper, no domain) | P4 |
 | D5 | Raw GPS retention | A) `RAW_RETENTION_H` short (privacy-first) · B) a week (more data for debugging) | A, plus an explicit export tool for calibration data | P3 |
 
 ---
@@ -173,7 +173,7 @@ Note: Photon's CMake sets `PICO_BOARD pico_w`; ChatNav must set `pico2_w` (RP235
 | SETUP | Slow blink | No config or F2 | Config saved → reboot |
 | CONNECTING | Fast blink | Boot or Wi-Fi lost | Connected → IDLE |
 | IDLE | Off | — | Press → RECORDING |
-| RECORDING | Solid | Press (mic GP9 high, I2S in on) | Release or `MAX_UTTERANCE_S` → WAITING; < `MIN_UTTERANCE_MS` → IDLE |
+| RECORDING | Solid | Press (mic GP9 high, I2S in on; first `MIC_WARMUP_MS` discarded while the press cue plays) | Release or `MAX_UTTERANCE_S` → WAITING; < `MIN_UTTERANCE_MS` → IDLE |
 | WAITING | Flashing | Upload finished | First audio bytes → PLAYING; error/timeout → IDLE + cue |
 | PLAYING | Off | Audio arriving | Stream ends → IDLE; press → RECORDING (barge-in) |
 
@@ -231,7 +231,7 @@ GPS reading, fix upload and encoder polling run in every state except SETUP. The
 
 ## 6. Device ↔ server protocol
 
-All requests carry `Authorization: Bearer <device token>`. Plain HTTP in P1–P3, TLS from P4.
+All requests go over TLS (pinned cert) and carry `Authorization: Bearer <device token>`. One kept-open connection is reused for fixes and queries.
 
 | Endpoint | Body in | Body out | Notes |
 |---|---|---|---|
@@ -401,7 +401,7 @@ Frameworks: **STRIDE** (security), **LINDDUN** (privacy), **UK GDPR Article 5** 
 | # | Risk | Framework mapping | Mitigation | Working evidence to capture |
 |---|---|---|---|---|
 | E1 | Precise location history exposed (to providers, or if the server is breached) | LINDDUN: Linkability, Identifiability, Disclosure · GDPR minimisation + storage limitation | Coordinates never sent to LLM; tiered retention with automatic purge; coarse locations only in long-lived tiers; delete-all | Logged LLM request showing context without coordinates; pytest + DB row counts before/after purge; delete-all before/after |
-| E2 | Unauthorised use of the server or interception on the hotspot | STRIDE: Spoofing, Information disclosure, DoS · OWASP API2/API4 | Per-device revocable token (hashed at rest), TLS with pinned cert (D4), firewall (ufw: only 22/443), rate limit, API keys only on server | `curl` with no/wrong token → 401; burst → 429; packet capture showing plaintext (P3) vs TLS (P4); `nmap` showing only open ports |
+| E2 | Unauthorised use of the server or interception on the hotspot | STRIDE: Spoofing, Information disclosure, DoS · OWASP API2/API4 | Per-device revocable token (hashed at rest), TLS with pinned cert, firewall (ufw: only 22/443), rate limit, API keys only on server | `curl` with no/wrong token → 401; burst → 429; packet capture showing only TLS traffic; device refusing a server with the wrong cert; `nmap` showing only open ports |
 | E3 | Covert or accidental recording (driver or passengers) | LINDDUN: Unawareness, Non-compliance | Hardware push-to-talk; mic physically unpowered (GP9 low) outside RECORDING; LED solid while recording; no audio stored | Multimeter on mic VDD idle vs held (0 V / 3.3 V); serial log of state transitions; schema showing no audio table |
 
 ### 10.2 Also handled (backup examples)
@@ -447,10 +447,10 @@ Today: Fri 6 Nov 2026. Deadline: Tue 12 Jan 2027. Report drafting runs alongside
 | Phase | Dates | Build | Exit criteria | Evidence to capture |
 |---|---|---|---|---|
 | P0 Setup | 6–8 Nov | Public GitHub repo, Project board, GenAI log, decision log; firmware skeleton builds for `pico2_w`; server `/v1/health` deployed | Blink + health check | Repo, board screenshot |
-| P1 Bring-up | 9–15 Nov | GPS UART + NMEA; encoder + volume; LED; setup portal (F1/F2); mic capture → WAV over USB serial; amp tone; T6, T8 | Each module works alone, then together | Serial logs, WAV waveform, photos, T8 result |
+| P1 Bring-up | 9–15 Nov | GPS UART + NMEA; encoder + volume; LED; setup portal (F1/F2); TLS + pinned cert to `/v1/health`; mic capture → WAV over USB serial; amp tone; T6, T8 | Each module works alone, then together | Serial logs, WAV waveform, photos, T8 result |
 | P2 Voice loop | 16–29 Nov | `/v1/query` streaming both ways; STT/LLM/TTS; cues; error clips; barge-in; repeat; timing log; F3–F9 | U9, U11–U13 work on device | Demo clip v1, T1/T2 baseline |
 | P3 GPS data | 30 Nov–13 Dec | `/v1/fixes`, SQLite, quality filter, trips, kinematics, events, buckets, summaries, context builder, replay/sim tools; calibration drive | U1–U8, U10, F11–F14 pass on replayed real drive | T7 chart, sample context bundle |
-| P4 Security | 14–20 Dec | Token auth, TLS (D4), ufw, rate limit, purge job, delete-all (U14) | E1–E3 evidence captured | Screenshots per §10.1 |
+| P4 Security | 14–20 Dec | Token auth, ufw, rate limit, purge job, delete-all (U14) | E1–E3 evidence captured | Screenshots per §10.1 |
 | P5 Evaluate | 21 Dec–3 Jan | T1–T5 full runs; noise recordings; demo video; optional enclosure/OTA | All T-tests recorded | Results tables, final video |
 | P6 Report | 4–12 Jan | Final write-up, appendices, PII check | Submitted early | — |
 
@@ -480,6 +480,7 @@ Firmware values live in `firmware/src/config.h`; server values in `server/app/co
 | `AUDIO_SAMPLE_RATE` | 16000 Hz | Both directions |
 | `MIC_GAIN_SHIFT` | tune in P1 | From T8 recordings |
 | `UPLOAD_CHUNK_MS` | 64 ms | ~2 KB chunks |
+| `MIC_WARMUP_MS` | 260 ms | Mic outputs nothing until ~2^18 clock cycles after power-up; verify against the INMP441 datasheet |
 | `MIN_UTTERANCE_MS` | 400 ms | F3 |
 | `MAX_UTTERANCE_S` | 10 s | F4 |
 | `PLAYBACK_PREBUFFER_MS` | 300 ms | |
@@ -539,7 +540,7 @@ Firmware values live in `firmware/src/config.h`; server values in `server/app/co
 | GPIO-powered mic too noisy | Medium | Medium | T8 in P1; breadboard 3V3 rail fallback |
 | I2S PIO timing / clone amp quirks | Medium | High | Bring up each direction alone; logic-level checks via test tones |
 | Latency over target | High | Medium | Streaming STT, sentence-by-sentence TTS, or OpenAI speech-to-speech (Realtime API) as one call |
-| TLS memory/handshake time on Pico | Medium | Medium | D4-A pinned cert; keep-alive connection; documented compensating controls if it slips |
+| TLS memory/handshake time on Pico | Medium | Medium | Bring up TLS in P1 before audio; keep-alive connection; plain HTTP + compensating controls only if it cannot fit |
 | No GPS fix for indoor demos | High | Low | Replay recorded drive via `nmea_replay.py`; demo states it's replayed |
 | GPS too coarse for brake detection | Medium | Medium | 5 Hz (D3-B); report as estimate; IMU as future work |
 | Hotspot drops in car | Medium | Low | Device ring buffer + local cues |
