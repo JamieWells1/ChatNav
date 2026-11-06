@@ -1,0 +1,8 @@
+.env
+*.env
+secrets.h
+build/
+__pycache__/
+*.db
+.venv/
+.DS_Store
