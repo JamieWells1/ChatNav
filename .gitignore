@@ -6,3 +6,30 @@ __pycache__/
 *.db
 .venv/
 .DS_Store
+
+# Build outputs
+build*/
+*.uf2
+*.elf
+*.bin
+*.hex
+*.map
+compile_commands.json
+
+# Python
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets and keys
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+
+# Evidence with personal data (GPS logs, recordings, exports)
+evidence/
+*.nmea
+*.wav
