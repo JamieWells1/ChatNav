@@ -38,13 +38,13 @@ Tags: **[DECIDED]** committed · **[DEFAULT]** what we build unless told otherwi
 | Fixed "driving context bundle" in every LLM call, no LLM tool calls | [DEFAULT] | One LLM round trip; no tool surface for prompt injection |
 | LLM never sees coordinates | [DEFAULT] | Core privacy mitigation (§10) |
 | Volume scaled on the device | [DEFAULT] | Encoder is on the device; instant feedback; amp has no volume control |
+| LLM: `claude-haiku-5-5` (thinking off, `LLM_MAX_OUTPUT_TOKENS` cap), behind a provider interface | [DECIDED] | Fast and cheap; short spoken answers don't need a bigger model |
+| STT + TTS: OpenAI speech-to-text and text-to-speech, behind provider interfaces | [DECIDED] | One account for both; PCM output suits the Pico |
 
 ### Owner to decide (can wait until the phase listed)
 
 | ID | Decision | Options | Recommendation | Needed by |
 |---|---|---|---|---|
-| D1 | LLM model | A) `claude-opus-5-5` at low effort ($4/$20 per M tokens), best answers · B) `claude-haiku-5-5` ($0.10/$0.50), cheapest and fastest | Measure both in T1/T4 and pick on latency + answer quality | P2 end |
-| D2 | STT + TTS provider | A) OpenAI transcribe + TTS (one account, simplest) · B) Deepgram streaming STT + TTS (transcript ready at release, ~1–2 s faster) | A first; provider sits behind an interface so B is a swap | P2 start |
 | D3 | GPS rate | A) 1 Hz default (no config) · B) 5 Hz (UBX config + faster baud) for better brake detection | Start A; try B in P3 calibration and keep whichever detects test stops better | P3 |
 | D4 | TLS approach | A) Self-signed cert, fingerprint pinned on device, no domain needed · B) Domain + Let's Encrypt, device checks CA | A (stronger, cheaper, no domain) | P4 |
 | D5 | Raw GPS retention | A) `RAW_RETENTION_H` short (privacy-first) · B) a week (more data for debugging) | A, plus an explicit export tool for calibration data | P3 |
@@ -252,10 +252,10 @@ Server-side query order: receive audio → STT → (fixes flushed by now) → bu
 | Stage | Detail |
 |---|---|
 | Audio prep | DC removal, trim leading/trailing silence, normalise; reject if speech < `MIN_SPEECH_MS` (F5) |
-| STT | Provider per D2, language `en-GB`; empty/very low confidence → F5 clip |
+| STT | OpenAI, language `en-GB`; empty/very low confidence → F5 clip |
 | Context | §9 bundle, built from SQLite |
-| LLM | Model per D1; system prompt §9.2; `LLM_MAX_OUTPUT_TOKENS`; conversation memory in RAM only |
-| TTS | Provider per D2; resample to `AUDIO_SAMPLE_RATE` if needed; stream as produced |
+| LLM | Claude Haiku 5.5; system prompt §9.2; `LLM_MAX_OUTPUT_TOKENS`; conversation memory in RAM only |
+| TTS | OpenAI; resample to `AUDIO_SAMPLE_RATE` if needed; stream as produced |
 | Error clips | Pre-rendered at startup with the same voice: didn't-catch, can't-reach-brain, data-deleted |
 | Rate limit | `RATE_LIMIT_QUERIES_PER_MIN` per device token |
 
@@ -429,7 +429,7 @@ Frameworks: **STRIDE** (security), **LINDDUN** (privacy), **UK GDPR Article 5** 
 
 | # | Test | Method |
 |---|---|---|
-| T1 | End-to-end latency | `LATENCY_RUNS` runs, release → first audio; P50/P95/min/max, for each D1 option |
+| T1 | End-to-end latency | `LATENCY_RUNS` runs, release → first audio; P50/P95/min/max |
 | T2 | Latency breakdown | Per-stage timings from §7.2 |
 | T3 | STT accuracy | Same 10 phrases: quiet / music / engine noise; word error rate |
 | T4 | Answer quality + safety | 10 driving + 5 general + 3 must-refuse questions; helpful / wrong / too long |
@@ -448,7 +448,7 @@ Today: Fri 6 Nov 2026. Deadline: Tue 12 Jan 2027. Report drafting runs alongside
 |---|---|---|---|---|
 | P0 Setup | 6–8 Nov | Public GitHub repo, Project board, GenAI log, decision log; firmware skeleton builds for `pico2_w`; server `/v1/health` deployed | Blink + health check | Repo, board screenshot |
 | P1 Bring-up | 9–15 Nov | GPS UART + NMEA; encoder + volume; LED; setup portal (F1/F2); mic capture → WAV over USB serial; amp tone; T6, T8 | Each module works alone, then together | Serial logs, WAV waveform, photos, T8 result |
-| P2 Voice loop | 16–29 Nov | `/v1/query` streaming both ways; STT/LLM/TTS; cues; error clips; barge-in; repeat; timing log; F3–F9 | U9, U11–U13 work on device; D1/D2 decided | Demo clip v1, T1/T2 baseline |
+| P2 Voice loop | 16–29 Nov | `/v1/query` streaming both ways; STT/LLM/TTS; cues; error clips; barge-in; repeat; timing log; F3–F9 | U9, U11–U13 work on device | Demo clip v1, T1/T2 baseline |
 | P3 GPS data | 30 Nov–13 Dec | `/v1/fixes`, SQLite, quality filter, trips, kinematics, events, buckets, summaries, context builder, replay/sim tools; calibration drive | U1–U8, U10, F11–F14 pass on replayed real drive | T7 chart, sample context bundle |
 | P4 Security | 14–20 Dec | Token auth, TLS (D4), ufw, rate limit, purge job, delete-all (U14) | E1–E3 evidence captured | Screenshots per §10.1 |
 | P5 Evaluate | 21 Dec–3 Jan | T1–T5 full runs; noise recordings; demo video; optional enclosure/OTA | All T-tests recorded | Results tables, final video |
@@ -538,7 +538,7 @@ Firmware values live in `firmware/src/config.h`; server values in `server/app/co
 |---|---|---|---|
 | GPIO-powered mic too noisy | Medium | Medium | T8 in P1; breadboard 3V3 rail fallback |
 | I2S PIO timing / clone amp quirks | Medium | High | Bring up each direction alone; logic-level checks via test tones |
-| Latency over target | High | Medium | Stream STT (D2-B), faster model (D1-B), sentence-by-sentence TTS |
+| Latency over target | High | Medium | Streaming STT, sentence-by-sentence TTS, or OpenAI speech-to-speech (Realtime API) as one call |
 | TLS memory/handshake time on Pico | Medium | Medium | D4-A pinned cert; keep-alive connection; documented compensating controls if it slips |
 | No GPS fix for indoor demos | High | Low | Replay recorded drive via `nmea_replay.py`; demo states it's replayed |
 | GPS too coarse for brake detection | Medium | Medium | 5 Hz (D3-B); report as estimate; IMU as future work |
