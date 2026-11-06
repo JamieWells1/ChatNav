@@ -504,7 +504,7 @@ Firmware values live in `firmware/src/config.h`; server values in `server/app/co
 | `HARSH_BRAKE_MS2` | −3.0 | Calibrate (T7) |
 | `HARSH_ACCEL_MS2` | +3.0 | Calibrate (T7) |
 | `HARSH_MIN_DURATION_S` | 1 s | |
-| `HARSH_MIN_SPEED_KMH` | 25 km/h | Ignores walking-pace jitter (industry practice, see `assignment/REFERENCES.md`) |
+| `HARSH_MIN_SPEED_KMH` | 25 km/h | Ignores walking-pace jitter (industry practice) |
 | `OVER_LIMIT_MPH` | 70 | UK national max |
 | `OVER_LIMIT_MIN_S` | 5 s | |
 | `LIVE_WINDOW_S` | 300 s | |
