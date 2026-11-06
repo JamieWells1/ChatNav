@@ -298,7 +298,7 @@ Speed comes from the GPS Doppler value in RMC, not from differencing positions (
 | Derivation | Method | When |
 |---|---|---|
 | Acceleration | Δspeed/Δtime between valid fixes, smoothed over `ACCEL_SMOOTH_N` deltas | On ingest (rolling) |
-| Harsh brake event | Smoothed accel ≤ `HARSH_BRAKE_MS2` for ≥ `HARSH_MIN_DURATION_S` | On ingest; finalised after the event ends |
+| Harsh brake event | Smoothed accel ≤ `HARSH_BRAKE_MS2` for ≥ `HARSH_MIN_DURATION_S`, only above `HARSH_MIN_SPEED_KMH` | On ingest; finalised after the event ends |
 | Harsh acceleration event | Smoothed accel ≥ `HARSH_ACCEL_MS2` for ≥ `HARSH_MIN_DURATION_S` | Same |
 | Over-70 event | Speed > `OVER_LIMIT_MPH` for ≥ `OVER_LIMIT_MIN_S`; one event per continuous spell | Same |
 | Minute buckets | Per minute: distance, mean/max speed, min/max accel, stopped seconds, event counts | On trip close (and rolling for the open trip) |
@@ -504,6 +504,7 @@ Firmware values live in `firmware/src/config.h`; server values in `server/app/co
 | `HARSH_BRAKE_MS2` | −3.0 | Calibrate (T7) |
 | `HARSH_ACCEL_MS2` | +3.0 | Calibrate (T7) |
 | `HARSH_MIN_DURATION_S` | 1 s | |
+| `HARSH_MIN_SPEED_KMH` | 25 km/h | Ignores walking-pace jitter (industry practice, see `assignment/REFERENCES.md`) |
 | `OVER_LIMIT_MPH` | 70 | UK national max |
 | `OVER_LIMIT_MIN_S` | 5 s | |
 | `LIVE_WINDOW_S` | 300 s | |
