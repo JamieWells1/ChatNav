@@ -1,0 +1,43 @@
+; I2S master transmitter for the MAX98357A: 16-bit slots, MSB first. Each 32-bit FIFO
+; word is one frame: high half is the first slot (LRC high), low half the second
+; (LRC low). Side-set pins: bit 0 = BCLK, bit 1 = LRC (LRC pin = BCLK pin + 1).
+; 2 PIO cycles per bit. Structure after pico-extras audio_i2s.pio (BSD-3-Clause).
+
+.program i2s_out
+.side_set 2
+
+    set x, 14   side 0b01
+.wrap_target
+bitloop1:
+    out pins, 1 side 0b10
+    jmp x-- bitloop1 side 0b11
+    out pins, 1 side 0b00       ; last bit of slot; LRC falls one bit before the next MSB
+    set x, 14   side 0b01
+bitloop0:
+    out pins, 1 side 0b00
+    jmp x-- bitloop0 side 0b01
+    out pins, 1 side 0b10
+    set x, 14   side 0b11
+.wrap
+
+% c-sdk {
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+
+static inline void i2s_out_program_init(PIO pio, uint sm, uint offset, uint pin_bclk, uint pin_din,
+                                        uint sample_rate) {
+    pio_gpio_init(pio, pin_din);
+    pio_gpio_init(pio, pin_bclk);
+    pio_gpio_init(pio, pin_bclk + 1);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_din, 1, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_bclk, 2, true);
+
+    pio_sm_config c = i2s_out_program_get_default_config(offset);
+    sm_config_set_out_pins(&c, pin_din, 1);
+    sm_config_set_sideset_pins(&c, pin_bclk);
+    sm_config_set_out_shift(&c, false, true, 32); /* shift left (MSB first), autopull */
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    sm_config_set_clkdiv(&c, (float)clock_get_hz(clk_sys) / (float)(sample_rate * 32u * 2u));
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}

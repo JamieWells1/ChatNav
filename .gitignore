@@ -33,3 +33,11 @@ compile_commands.json
 evidence/
 *.nmea
 *.wav
+
+# Synthetic test fixtures may be committed (never real recordings or GPS logs)
+!firmware/tests/fixtures/
+!firmware/tests/fixtures/*.nmea
+!firmware/tests/fixtures/*.wav
+!tools/fixtures/
+!tools/fixtures/*.nmea
+!tools/fixtures/*.wav

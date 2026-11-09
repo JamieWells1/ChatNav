@@ -1,0 +1,61 @@
+; I2S master receiver for the INMP441: 32-bit slots, MSB first, two words per frame
+; (left then right). Side-set pins: bit 0 = SCK, bit 1 = WS (WS pin = SCK pin + 1).
+; 4 PIO cycles per bit: SCK high for 2, low for 2. The mic changes data on the falling
+; edge; the `in` runs in the first low cycle and the input synchroniser makes it read
+; the pin as it was at the rising edge, in the middle of the stable window.
+; I2S timing: WS changes on the falling edge one bit before the MSB is driven, so the
+; MSB is sampled at the second rising edge after the WS change. Hence WS flips in the
+; 31st period of each 32-period slot, and the next slot's 32 samples start after the
+; 32nd. Per slot: 30 loop periods + WS-change period + one period at the new level.
+; Setup code must exec "set x, 29" before the first run. The first frame after start
+; is unaligned until the mic sees a WS edge, which is covered by MIC_WARMUP_MS.
+
+.program i2s_in
+.side_set 2
+
+.wrap_target
+lo_slot:                           ; WS = 0
+    nop         side 0b01 [1]
+    in pins, 1  side 0b00
+    jmp x-- lo_slot side 0b00
+    nop         side 0b01 [1]
+    in pins, 1  side 0b10       ; WS rises at this falling edge
+    set x, 29   side 0b10
+    nop         side 0b11 [1]
+    in pins, 1  side 0b10
+    nop         side 0b10
+hi_slot:                          ; WS = 1
+    nop         side 0b11 [1]
+    in pins, 1  side 0b10
+    jmp x-- hi_slot side 0b10
+    nop         side 0b11 [1]
+    in pins, 1  side 0b00       ; WS falls at this falling edge
+    set x, 29   side 0b00
+    nop         side 0b01 [1]
+    in pins, 1  side 0b00
+    nop         side 0b00
+.wrap
+
+% c-sdk {
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+#include "hardware/pio_instructions.h"
+
+static inline void i2s_in_program_init(PIO pio, uint sm, uint offset, uint pin_sck, uint pin_sd,
+                                       uint sample_rate) {
+    pio_gpio_init(pio, pin_sd);
+    pio_gpio_init(pio, pin_sck);
+    pio_gpio_init(pio, pin_sck + 1);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_sd, 1, false);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_sck, 2, true);
+
+    pio_sm_config c = i2s_in_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, pin_sd);
+    sm_config_set_sideset_pins(&c, pin_sck);
+    sm_config_set_in_shift(&c, false, true, 32); /* shift left (MSB first), autopush */
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+    sm_config_set_clkdiv(&c, (float)clock_get_hz(clk_sys) / (float)(sample_rate * 64u * 4u));
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_exec(pio, sm, pio_encode_set(pio_x, 29));
+}
+%}
