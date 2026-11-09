@@ -10,6 +10,21 @@ class Settings(BaseSettings):
     tts_api_key: str = ""
     db_path: str = "chatnav.db"
 
+    # Voice providers (M3): "openai"/"anthropic" for real, "stub" for tests and offline runs
+    stt_provider: str = "openai"
+    llm_provider: str = "anthropic"
+    tts_provider: str = "openai"
+    stt_model: str = "gpt-4o-mini-transcribe"
+    llm_model: str = "claude-haiku-5-5"
+    tts_model: str = "gpt-4o-mini-tts"
+    tts_voice: str = "alloy"
+    provider_timeout_s: float = 10.0
+    # Cost estimate inputs (USD); assumptions, check against current price lists
+    cost_stt_per_min: float = 0.003
+    cost_llm_in_per_mtok: float = 1.0
+    cost_llm_out_per_mtok: float = 5.0
+    cost_tts_per_min: float = 0.015
+
     # Tunables (plan section 14)
     audio_sample_rate: int = 16000
     min_sats: int = 4
