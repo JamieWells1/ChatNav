@@ -1,0 +1,30 @@
+# E2 evidence: 2026-11-09T11:31:28Z, target localhost:8444, mode local
+
+# 1. No token -> 401
+GET /v1/whoami (no Authorization) -> 401  PASS
+POST /v1/fixes (no Authorization) -> 401
+DELETE /v1/data (no Authorization) -> 401  (must be 401)
+
+# 2. Wrong token -> 401
+GET /v1/whoami (right id, wrong secret) -> 401  PASS
+GET /v1/whoami (malformed token) -> 401  PASS
+
+# 3. Valid token -> 200
+GET /v1/whoami (valid token) -> 200  PASS
+
+# 4. Burst of 15 queries in one minute -> 429 after RATE_LIMIT_QUERIES_PER_MIN
+status codes: 200 200 200 200 200 200 200 200 200 200 429 429 429 429 429
+PASS (429 seen)
+
+# 5. TLS only
+plain http:// to the TLS port -> 000 (000 or 400 means no plaintext service)
+openssl s_client -tls1 -> refused
+openssl s_client -tls1_1 -> refused
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Protocol: TLSv1.3
+
+# 6. Open ports (expect only 22 and 443 externally; Photon's ports only if kept on purpose)
+(nmap not installed; plain TCP connect scan of common ports instead)
+5432/tcp open
+8080/tcp open
+(local run: the only listener started here is 8444; a droplet run is the real evidence)

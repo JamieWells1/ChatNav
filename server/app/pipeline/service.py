@@ -14,7 +14,7 @@ from app.pipeline.llm import LlmProvider, make_llm
 from app.pipeline.memory import ConversationMemory, ReplyCache
 from app.pipeline.stt import SttProvider, make_stt
 from app.pipeline.tts import TtsProvider, make_tts, stream_pcm
-from app.store import voice_db
+from app.store import voice_db, wipe
 
 log = logging.getLogger("chatnav.pipeline")
 
@@ -111,6 +111,7 @@ class QueryRun:
         self.m: dict = {"upload_ms": int((t_up - t0) * 1000)}
         self.transcript: str | None = None
         self.reply: str | None = None
+        self.skip_log = False
 
     def begin(self) -> tuple[str, Iterator[bytes]]:
         pipe, m = self.pipe, self.m
@@ -131,6 +132,8 @@ class QueryRun:
         if not text.strip():
             return self._clip("no_speech", pipe.clips.didnt_catch)
         self.transcript = text.strip()
+        if wipe.is_delete_command(self.transcript):
+            return self._delete_command()
 
         t = time.monotonic()
         try:
@@ -160,6 +163,18 @@ class QueryRun:
             return self._clip("error", pipe.clips.cant_reach_brain)
         m["tts_first_ms"] = _ms(t_tts)
         return "ok", self._speak(first, chunks, t_tts)
+
+    def _delete_command(self) -> tuple[str, Iterator[bytes]]:
+        """U14, matched on the transcript (never the LLM). The wipe leaves no trace of itself."""
+        pipe = self.pipe
+        self.transcript = None  # the command itself is not logged
+        if not wipe.guard.confirmed(self.device_id, "voice"):
+            return self._clip("ok", pipe.clips.delete_confirm)
+        wipe.wipe_device(self.device_id)
+        pipe.memory.clear(self.device_id)
+        pipe.cache.clear(self.device_id)
+        self.skip_log = True
+        return self._clip("ok", pipe.clips.data_deleted)
 
     def _clip(self, outcome: str, pcm: bytes) -> tuple[str, Iterator[bytes]]:
         return outcome, self._play(outcome, pcm)
@@ -200,6 +215,8 @@ class QueryRun:
             + len(self.reply or "") / CHARS_PER_SPOKEN_MIN * settings.cost_tts_per_min,
             6,
         )
+        if self.skip_log:
+            return
         try:
             voice_db.record_query(self.device_id, outcome, m, self.transcript, self.reply)
         except Exception as e:

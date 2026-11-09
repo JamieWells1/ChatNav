@@ -1,5 +1,6 @@
 """POST /v1/query (voice in, voice out) and GET /v1/query/last (repeat)."""
 
+import asyncio
 import time
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -11,6 +12,8 @@ from fastapi.responses import StreamingResponse
 from app.auth import CurrentDevice
 from app.config import settings
 from app.pipeline.service import Pipeline, QueryRun, get_pipeline
+from app.ratelimit import query_rate_limit
+from app.store.retention import purge_loop
 
 router = APIRouter()
 Pipe = Annotated[Pipeline, Depends(get_pipeline)]
@@ -20,7 +23,7 @@ def _media_type() -> str:
     return f"audio/L16; rate={settings.audio_sample_rate}; channels=1"
 
 
-@router.post("/v1/query")
+@router.post("/v1/query", dependencies=[Depends(query_rate_limit)])
 async def query(request: Request, device: CurrentDevice, pipe: Pipe) -> StreamingResponse:
     t0 = time.monotonic()
     cap = (settings.max_utterance_s + 1) * settings.audio_sample_rate * 2
@@ -43,6 +46,10 @@ def last(device: CurrentDevice, pipe: Pipe) -> Response:
 
 @asynccontextmanager
 async def voice_lifespan(app: FastAPI):
-    """Renders the error clips at startup so the first failure is already playable."""
+    """Renders the clips at startup so the first failure is already playable; runs the purge job."""
     await run_in_threadpool(lambda: get_pipeline().clips)
-    yield
+    purger = asyncio.create_task(purge_loop())
+    try:
+        yield
+    finally:
+        purger.cancel()

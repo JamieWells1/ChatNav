@@ -29,6 +29,10 @@ class ConversationMemory:
             while len(q) > settings.convo_turns:
                 q.popleft()
 
+    def clear(self, device_id: str) -> None:
+        with self._lock:
+            self._turns.pop(device_id, None)
+
     def recent(self, device_id: str) -> list[ConvoTurn]:
         cutoff = (time.time() - settings.convo_ttl_s) * 1000
         with self._lock:
@@ -43,6 +47,10 @@ class ReplyCache:
     def put(self, device_id: str, pcm: bytes) -> None:
         with self._lock:
             self._items[device_id] = (time.monotonic(), pcm)
+
+    def clear(self, device_id: str) -> None:
+        with self._lock:
+            self._items.pop(device_id, None)
 
     def get(self, device_id: str) -> bytes | None:
         with self._lock:

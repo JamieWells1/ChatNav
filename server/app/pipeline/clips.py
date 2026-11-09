@@ -14,6 +14,9 @@ log = logging.getLogger("chatnav.clips")
 TEXTS = {
     "didnt_catch": "Sorry, I didn't catch that.",
     "cant_reach_brain": "Sorry, I can't reach my brain right now. Try again in a moment.",
+    "delete_confirm": (
+        "This will delete all your driving history. Ask me again within thirty seconds to confirm."
+    ),
     "data_deleted": "Done. All your driving data has been deleted.",
 }
 
@@ -23,6 +26,7 @@ class Clips:
     didnt_catch: bytes
     cant_reach_brain: bytes
     data_deleted: bytes
+    delete_confirm: bytes
 
 
 def _tone(rate: int, freqs: list[float]) -> bytes:
@@ -40,6 +44,7 @@ FALLBACK_TONES = {
     "didnt_catch": [440.0, 330.0],
     "cant_reach_brain": [330.0, 330.0, 220.0],
     "data_deleted": [440.0, 550.0],
+    "delete_confirm": [440.0, 440.0],
 }
 
 
