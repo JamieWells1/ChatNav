@@ -129,13 +129,13 @@ static size_t on_query_data(const uint8_t *data, size_t len, void *ctx) {
 }
 
 void http_query_expect(jitter_t *sink) {
-    tls_client_set_receiver(NULL, NULL);
     memset(&q.reply, 0, sizeof(q.reply));
     http_resp_init_stream(&q.parser);
     q.sink = sink;
     q.reply.last_audio_ms = to_ms_since_boot(get_absolute_time());
-    tls_client_set_receiver(on_query_data, NULL);
 }
+
+void http_query_bind(void) { tls_client_set_receiver(on_query_data, NULL); }
 
 const query_reply_t *http_query_reply(void) { return &q.reply; }
 

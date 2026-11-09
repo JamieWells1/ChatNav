@@ -3,11 +3,25 @@
 
 #include <stdbool.h>
 
-/* Hook for M4 (POST /v1/fixes). The main loop calls fix_upload_poll every pass in every
- * state except SETUP, and fix_upload_flush when the button is pressed so the server sees
- * the last seconds of driving (U2). Both do nothing until M4. */
+#include "storage/device_config.h"
 
-void fix_upload_poll(bool link_up);
+/* POST /v1/fixes over the kept-open connection (F11-F14). Records stay in the GPS ring
+ * buffer until the server acknowledges the batch sequence; a failed batch is retried.
+ * The main loop calls fix_upload_poll every pass in every state except SETUP. A batch only
+ * starts while the single connection is free (conn_free), so it never delays or interrupts
+ * a voice query; a batch already in flight when a query starts is finished first, and
+ * uplink_poll holds the query head back until fix_upload_busy is false. */
+
+/* cfg must outlive the uploader. */
+void fix_upload_init(const device_config_t *cfg);
+
+void fix_upload_poll(bool link_up, bool conn_free);
+
+/* Button press: send what is buffered now (U2) if the connection is free, otherwise as soon
+ * as it is. Never blocks. */
 void fix_upload_flush(void);
+
+/* A batch is being written or awaiting its reply, so the connection is in use. */
+bool fix_upload_busy(void);
 
 #endif

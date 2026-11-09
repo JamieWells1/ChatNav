@@ -5,6 +5,7 @@
 
 #include "audio/playback.h"
 #include "net/chunkq.h"
+#include "net/fix_upload.h"
 #include "net/link.h"
 #include "net/tls_client.h"
 #include "pico/time.h"
@@ -18,6 +19,7 @@ static bool finish_pending; /* terminal chunk not yet queued (queue was full) */
 static bool finished;       /* terminal chunk queued */
 static bool in_flight;      /* some request bytes were written and the reply is not done */
 static bool failed;
+static bool bound; /* the TLS receiver is bound to the reply parser */
 
 void uplink_init(const device_config_t *c) { cfg = c; }
 
@@ -28,6 +30,7 @@ static void reset_request(void) {
     finished = false;
     in_flight = false;
     failed = false;
+    bound = false;
     playback_reset();
     http_query_expect(playback_buffer());
 }
@@ -64,6 +67,7 @@ void uplink_discard(void) {
     finish_pending = false;
     finished = false;
     failed = false;
+    bound = false;
     printf("[UPLINK] short press, nothing uploaded\n");
 }
 
@@ -89,6 +93,7 @@ void uplink_abort(void) {
     finished = false;
     in_flight = false;
     failed = false;
+    bound = false;
     if (dirty && tls_client_state() == TLS_READY) {
         printf("[UPLINK] request abandoned mid-flight, reopening the connection\n");
         link_force_reconnect();
@@ -102,6 +107,13 @@ void uplink_poll(void) {
         finished = true;
     }
     if (!armed || failed || tls_client_state() != TLS_READY) return;
+
+    /* A fix batch owns the connection until its reply is in; the request waits queued. */
+    if (!bound) {
+        if (fix_upload_busy()) return;
+        http_query_bind();
+        bound = true;
+    }
 
     const uint8_t *p;
     size_t len;

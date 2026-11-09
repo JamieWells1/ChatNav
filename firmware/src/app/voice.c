@@ -95,13 +95,11 @@ static int poll_recording(void) {
 
 static int poll_waiting(void) {
     uplink_status_t st = uplink_status();
-    if (st.failed) return EV_QUERY_ERROR;
-    if (st.headers && st.status != 200) {
-        printf("[VOICE] server answered %d\n", st.status);
-        return EV_QUERY_ERROR;
+    int ev = app_waiting_event(st.failed, st.headers, st.status, st.audio_started, st.reply_done);
+    if (ev != APP_NO_EVENT) {
+        if (st.headers && st.status != 200) printf("[VOICE] server answered %d\n", st.status);
+        return ev;
     }
-    if (st.audio_started) return EV_FIRST_AUDIO;
-    if (st.reply_done) return EV_STREAM_END;
     if (app_query_timed_out(now_ms() - wait_ms)) {
         printf("[VOICE] no reply within %d s\n", QUERY_TIMEOUT_S);
         return EV_QUERY_TIMEOUT;

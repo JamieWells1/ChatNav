@@ -40,9 +40,13 @@ typedef struct {
 size_t http_query_post_head(char *out, size_t cap, const char *host, const char *token);
 size_t http_query_last_head(char *out, size_t cap, const char *host, const char *token);
 
-/* Binds the TLS receiver to the reply parser; 200 bodies go into sink (back-pressured by
- * its free space), other bodies are discarded. Call before the request is sent. */
+/* Resets the reply state for a new request; 200 bodies go into sink (back-pressured by its
+ * free space), other bodies are discarded. Does not touch the TLS receiver. */
 void http_query_expect(jitter_t *sink);
+
+/* Binds the TLS receiver to the reply parser. Call just before the first request byte is
+ * written, once the connection is free (a fix batch may own the receiver until then). */
+void http_query_bind(void);
 
 const query_reply_t *http_query_reply(void);
 

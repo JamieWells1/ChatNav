@@ -39,6 +39,18 @@ static void test_volume_save_delay(void) {
         app_volume_save_due(true, 0xFFFFFFF0u, 0xFFFFFFF0u + VOLUME_SAVE_DELAY_S * 1000));
 }
 
+static void test_waiting_verdicts(void) {
+    /* GET /v1/query/last with nothing cached: 404 -> error cue, never a hang */
+    TEST_ASSERT_EQUAL(EV_QUERY_ERROR, app_waiting_event(false, true, 404, false, false));
+    TEST_ASSERT_EQUAL(EV_QUERY_ERROR, app_waiting_event(false, true, 404, false, true));
+    TEST_ASSERT_EQUAL(EV_QUERY_ERROR, app_waiting_event(false, true, 401, false, false));
+    TEST_ASSERT_EQUAL(EV_QUERY_ERROR, app_waiting_event(true, false, 0, false, false));
+    TEST_ASSERT_EQUAL(APP_NO_EVENT, app_waiting_event(false, false, 0, false, false));
+    TEST_ASSERT_EQUAL(APP_NO_EVENT, app_waiting_event(false, true, 200, false, false));
+    TEST_ASSERT_EQUAL(EV_FIRST_AUDIO, app_waiting_event(false, true, 200, true, false));
+    TEST_ASSERT_EQUAL(EV_STREAM_END, app_waiting_event(false, true, 200, false, true));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_release_threshold);
@@ -46,5 +58,6 @@ int main(void) {
     RUN_TEST(test_query_timeout);
     RUN_TEST(test_double_press);
     RUN_TEST(test_volume_save_delay);
+    RUN_TEST(test_waiting_verdicts);
     return UNITY_END();
 }

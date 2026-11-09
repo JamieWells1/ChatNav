@@ -20,3 +20,11 @@ bool app_query_timed_out(uint32_t waited_ms) { return waited_ms >= QUERY_TIMEOUT
 bool app_volume_save_due(bool pending, uint32_t last_turn_ms, uint32_t now_ms) {
     return pending && (uint32_t)(now_ms - last_turn_ms) >= VOLUME_SAVE_DELAY_S * 1000u;
 }
+
+int app_waiting_event(bool failed, bool headers, int status, bool audio_started, bool reply_done) {
+    if (failed) return EV_QUERY_ERROR;
+    if (headers && status != 200) return EV_QUERY_ERROR;
+    if (audio_started) return EV_FIRST_AUDIO;
+    if (reply_done) return EV_STREAM_END;
+    return APP_NO_EVENT;
+}

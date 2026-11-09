@@ -27,4 +27,13 @@ bool app_query_timed_out(uint32_t waited_ms);
 /* F10: a volume change is saved once VOLUME_SAVE_DELAY_S passes with no further turn. */
 bool app_volume_save_due(bool pending, uint32_t last_turn_ms, uint32_t now_ms);
 
+/* No event pending. */
+#define APP_NO_EVENT (-1)
+
+/* WAITING-state verdict from the reply so far: any non-200 answer (including 404 from
+ * GET /v1/query/last with nothing cached) or a failure is a query error, which plays the
+ * server-error cue; first audio starts playback; a 200 that ends with no audio is a stream
+ * end (also the error cue). Returns an app_event_t or APP_NO_EVENT (timeout is separate). */
+int app_waiting_event(bool failed, bool headers, int status, bool audio_started, bool reply_done);
+
 #endif

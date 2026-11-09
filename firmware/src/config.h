@@ -38,6 +38,10 @@
 #define SETUP_AP_PASSWORD "chatnav-setup" /* WPA2; the form carries the device token */
 #define DEVICE_FIX_BUFFER 1800
 #define FIX_UPLOAD_INTERVAL_S 5
+#define FIX_UPLOAD_RETRY_S 5   /* wait after a failed batch before trying again */
+#define FIX_UPLOAD_TIMEOUT_S 8 /* no complete reply to a batch: give up, reopen the link */
+#define FIX_BATCH_MAX 32       /* records per batch; a backlog drains over several batches */
+#define FIRMWARE_VERSION 4     /* u16 in the batch header: the milestone that built it */
 #define MIN_SATS 4
 #define MAX_HDOP 5.0f
 

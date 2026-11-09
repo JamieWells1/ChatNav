@@ -104,7 +104,7 @@ static void run_active(void) {
     gps_poll(NULL);
     log_gps();
     run_link();
-    fix_upload_poll(state != STATE_CONNECTING);
+    fix_upload_poll(state != STATE_CONNECTING, state == STATE_IDLE);
     uplink_poll();
 
     int ev = voice_poll_input(state);
@@ -124,6 +124,7 @@ int main(void) {
     boot();
     if (state != STATE_SETUP) {
         gps_init();
+        fix_upload_init(&cfg);
         voice_init(&cfg);
     }
 

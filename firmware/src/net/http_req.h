@@ -14,6 +14,7 @@ typedef struct {
     const char *token;        /* bearer token, NULL or empty for none */
     const char *content_type; /* NULL for no body headers */
     bool chunked_body;        /* adds Transfer-Encoding: chunked */
+    size_t content_length;    /* adds Content-Length when > 0 and not chunked */
 } http_req_t;
 
 /* Writes the request line and headers, ending with the blank line. Returns the length,

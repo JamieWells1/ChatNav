@@ -79,6 +79,8 @@ set(NET_SOURCES
         src/net/chunkq.c
         src/net/http_stream.c
         src/net/uplink.c
+        src/net/fix_batch.c
+        src/net/fix_sched.c
         src/net/fix_upload.c
         src/net/link.c
 )

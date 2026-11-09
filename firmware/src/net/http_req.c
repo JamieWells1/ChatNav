@@ -24,6 +24,11 @@ size_t http_req_build(char *out, size_t cap, const http_req_t *req) {
         if (w < 0 || (size_t)w >= cap - n) return 0;
         n += (size_t)w;
     }
+    if (req->content_length > 0 && !req->chunked_body) {
+        w = snprintf(out + n, cap - n, "Content-Length: %zu\r\n", req->content_length);
+        if (w < 0 || (size_t)w >= cap - n) return 0;
+        n += (size_t)w;
+    }
     w = snprintf(out + n, cap - n, "Connection: keep-alive\r\n\r\n");
     if (w < 0 || (size_t)w >= cap - n) return 0;
     return n + (size_t)w;

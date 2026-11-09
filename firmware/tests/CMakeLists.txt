@@ -32,6 +32,8 @@ add_unity_test(test_app_state ../src/app/app_state.c ../src/status/led_pattern.c
 add_unity_test(test_app_timing ../src/app/app_timing.c ../src/app/app_state.c
                ../src/status/led_pattern.c)
 add_unity_test(test_jitter ../src/audio/jitter.c)
+add_unity_test(test_fix_upload ../src/net/fix_batch.c ../src/net/fix_sched.c ../src/net/http_req.c
+               ../src/gps/fix_buffer.c ../src/gps/fix_record.c)
 add_unity_test(test_http_req ../src/net/http_req.c ../src/net/chunkq.c)
 
 find_library(LIBM m)
