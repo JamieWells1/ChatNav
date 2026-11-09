@@ -21,7 +21,9 @@ typedef enum {
     TLS_FAILED,     /* see tls_client_error */
 } tls_state_t;
 
-typedef void (*tls_recv_fn)(const uint8_t *data, size_t len, void *ctx);
+/* Returns how many bytes it took. Taking fewer than len applies back-pressure: the rest is
+ * held, not acknowledged to the peer, and offered again from tls_client_pump. */
+typedef size_t (*tls_recv_fn)(const uint8_t *data, size_t len, void *ctx);
 
 ReturnCode tls_client_open(const char *host, uint16_t port, const uint8_t pin[FP_LEN],
                            tls_recv_fn on_recv, void *ctx);
@@ -30,6 +32,12 @@ ReturnCode tls_client_error(void);
 
 /* Replaces the receive callback of the open connection. */
 void tls_client_set_receiver(tls_recv_fn on_recv, void *ctx);
+
+/* Re-offers held data to the receiver. Call every pass of the main loop. */
+void tls_client_pump(void);
+
+/* Bytes tls_client_write would accept right now. */
+size_t tls_client_writable(void);
 
 /* Queues plaintext for sending; returns RC_ERR_BUSY if the send buffer is full. */
 ReturnCode tls_client_write(const void *data, size_t len);

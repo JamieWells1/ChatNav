@@ -28,6 +28,7 @@ static volatile uint32_t tail; /* consumer: DMA IRQ */
 static volatile int volume = VOLUME_STEPS / 2;
 static volatile uint32_t underruns;
 static cue_gen_t cue;
+static jitter_t *volatile source;
 static bool running;
 static bool ready;
 
@@ -38,6 +39,8 @@ static void fill_block(int idx) {
     uint32_t h = head;
     while (got < BLOCK_FRAMES && t != h) tmp[got++] = ring[t++ % RING_SIZE];
     tail = t;
+    jitter_t *src = source;
+    if (got < BLOCK_FRAMES && src) got += jitter_read(src, tmp + got, BLOCK_FRAMES - got);
     if (got > 0 && got < BLOCK_FRAMES) underruns++;
     memset(tmp + got, 0, (BLOCK_FRAMES - got) * sizeof(tmp[0]));
     pcm_mono_to_stereo(tmp, BLOCK_FRAMES, out_buf[idx], volume);
@@ -133,6 +136,8 @@ size_t speaker_write(const int16_t *mono, size_t n) {
     head = h;
     return n;
 }
+
+void speaker_set_source(jitter_t *src) { source = src; }
 
 void speaker_set_volume(int step) { volume = volume_clamp_step(step); }
 

@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "audio/cues.h"
+#include "audio/jitter.h"
 #include "common/error.h"
 
 /* Claims the PIO state machine and DMA channels. Output stays idle until speaker_start. */
@@ -22,6 +23,10 @@ size_t speaker_free(void);
 
 /* Samples queued but not yet played. */
 size_t speaker_queued(void);
+
+/* Reply audio source, read after any queued cue samples when each DMA block is filled
+ * (volume and mono-to-stereo duplication happen there). NULL detaches it. */
+void speaker_set_source(jitter_t *src);
 
 /* Volume step in [0, VOLUME_STEPS-1], applied as blocks are filled. */
 void speaker_set_volume(int step);

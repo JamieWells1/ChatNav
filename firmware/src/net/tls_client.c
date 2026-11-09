@@ -22,6 +22,12 @@ static tls_recv_fn recv_fn;
 static void *recv_ctx;
 static char server_host[64];
 
+/* Received data the receiver has not fully taken yet (back-pressure). */
+static struct pbuf *held;
+static size_t held_off;
+static size_t held_total;
+static bool close_pending;
+
 static void fail(ReturnCode rc) {
     state = TLS_FAILED;
     last_error = rc;
@@ -36,21 +42,82 @@ static void drop_pcb(void) {
     pcb = NULL;
 }
 
+static void free_held(void) {
+    if (held) pbuf_free(held);
+    held = NULL;
+    held_off = 0;
+    held_total = 0;
+    close_pending = false;
+}
+
+/* Offers the held data to the receiver; frees and acknowledges it once all is taken. */
+static void deliver_held(void) {
+    size_t skip = held_off;
+    for (struct pbuf *q = held; q; q = q->next) {
+        if (skip >= q->len) {
+            skip -= q->len;
+            continue;
+        }
+        size_t avail = q->len - skip;
+        size_t used = recv_fn ? recv_fn((const uint8_t *)q->payload + skip, avail, recv_ctx) : avail;
+        held_off += used;
+        if (used < avail) return;
+        skip = 0;
+    }
+    if (pcb) altcp_recved(pcb, (u16_t)held_total);
+    pbuf_free(held);
+    held = NULL;
+    held_off = 0;
+    held_total = 0;
+}
+
 static err_t on_recv(void *arg, struct altcp_pcb *conn, struct pbuf *p, err_t err) {
     (void)arg;
     if (!p) { /* closed by the peer */
         printf("[TLS] server closed the connection\n");
         pcb = NULL;
         altcp_close(conn);
-        fail(RC_TLS_CLOSED);
+        if (held) {
+            close_pending = true; /* report once the held data has been read */
+        } else {
+            fail(RC_TLS_CLOSED);
+        }
         return ERR_OK;
     }
-    if (err == ERR_OK && recv_fn) {
-        for (struct pbuf *q = p; q; q = q->next) recv_fn(q->payload, q->len, recv_ctx);
+    if (err != ERR_OK || !recv_fn) {
+        altcp_recved(conn, p->tot_len);
+        pbuf_free(p);
+        return ERR_OK;
     }
-    altcp_recved(conn, p->tot_len);
-    pbuf_free(p);
+    if (held) {
+        held_total += p->tot_len;
+        pbuf_cat(held, p);
+    } else {
+        held = p;
+        held_total = p->tot_len;
+        held_off = 0;
+        deliver_held();
+    }
     return ERR_OK;
+}
+
+void tls_client_pump(void) {
+    if (!held && !close_pending) return;
+    cyw43_arch_lwip_begin();
+    if (held) deliver_held();
+    if (!held && close_pending) {
+        close_pending = false;
+        fail(RC_TLS_CLOSED);
+    }
+    cyw43_arch_lwip_end();
+}
+
+size_t tls_client_writable(void) {
+    if (state != TLS_READY || !pcb) return 0;
+    cyw43_arch_lwip_begin();
+    size_t n = altcp_sndbuf(pcb);
+    cyw43_arch_lwip_end();
+    return n;
 }
 
 static void on_err(void *arg, err_t err) {
@@ -137,6 +204,7 @@ ReturnCode tls_client_open(const char *host, uint16_t port, const uint8_t fp[FP_
     if (!host || strlen(host) >= sizeof(server_host)) return RC_ERR_INVALID_PARAM;
     cyw43_arch_lwip_begin();
     drop_pcb();
+    free_held();
     strcpy(server_host, host);
     server_port = port;
     memcpy(pin, fp, FP_LEN);
@@ -183,6 +251,7 @@ ReturnCode tls_client_write(const void *data, size_t len) {
 void tls_client_close(void) {
     cyw43_arch_lwip_begin();
     drop_pcb();
+    free_held();
     state = TLS_IDLE;
     cyw43_arch_lwip_end();
 }

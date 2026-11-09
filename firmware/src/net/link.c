@@ -10,6 +10,7 @@
 
 #define RETRY_DELAY_MS 5000
 #define REPLY_TIMEOUT_MS 5000
+#define WATCH_INTERVAL_MS 250
 
 typedef enum {
     STEP_JOIN,
@@ -23,8 +24,11 @@ static const device_config_t *cfg;
 static step_t step = STEP_BACKOFF;
 static absolute_time_t retry_at;
 static absolute_time_t tls_deadline;
+static absolute_time_t next_watch;
+static bool reconnecting; /* quick reopen of the server connection; skips the health checks */
 
 static void back_off(const char *why) {
+    reconnecting = false;
     printf("[LINK] %s, retrying in %d s\n", why, RETRY_DELAY_MS / 1000);
     tls_client_close();
     step = STEP_BACKOFF;
@@ -35,6 +39,21 @@ void link_start(const device_config_t *c) {
     cfg = c;
     step = STEP_BACKOFF;
     retry_at = get_absolute_time();
+}
+
+void link_force_reconnect(void) {
+    tls_client_close();
+    if (!cfg || !wifi_link_up()) {
+        printf("[LINK] reconnect requested but Wi-Fi is down\n");
+        step = STEP_BACKOFF;
+        retry_at = get_absolute_time();
+        return;
+    }
+    printf("[LINK] reopening server connection\n");
+    reconnecting = true;
+    tls_client_open(cfg->server_host, cfg->server_port, cfg->fingerprint, NULL, NULL);
+    tls_deadline = make_timeout_time_ms(SERVER_CONNECT_TIMEOUT_S * 1000);
+    step = STEP_TLS;
 }
 
 /* Health proves TLS and routing; whoami proves the bearer token is accepted. */
@@ -89,12 +108,17 @@ link_status_t link_poll(void) {
 
         case STEP_TLS: {
             tls_state_t t = tls_client_state();
+            bool was_reconnect = reconnecting;
             if (t == TLS_READY) {
-                step = STEP_CHECK;
+                step = reconnecting ? STEP_UP : STEP_CHECK;
+                if (reconnecting) printf("[LINK] reconnected\n");
+                reconnecting = false;
             } else if (t == TLS_FAILED) {
                 back_off(rc_to_string(tls_client_error()));
+                if (was_reconnect) return LINK_LOST;
             } else if (absolute_time_diff_us(get_absolute_time(), tls_deadline) <= 0) {
                 back_off("server connect timed out");
+                if (was_reconnect) return LINK_LOST;
             }
             break;
         }
@@ -109,6 +133,8 @@ link_status_t link_poll(void) {
             break;
 
         case STEP_UP:
+            if (absolute_time_diff_us(get_absolute_time(), next_watch) > 0) return LINK_UP;
+            next_watch = make_timeout_time_ms(WATCH_INTERVAL_MS);
             if (wifi_poll(WIFI_CONNECT_TIMEOUT_S) != WIFI_UP || tls_client_state() != TLS_READY) {
                 back_off("link lost");
                 return LINK_LOST;

@@ -15,6 +15,10 @@ typedef enum {
 /* cfg must stay valid for the life of the link. */
 void link_start(const device_config_t *cfg);
 
+/* Closes the server connection and opens a new one (Wi-Fi stays up), without the health
+ * checks. link_poll reports LINK_LOST if the reopen fails. */
+void link_force_reconnect(void);
+
 /* Call often from the main loop. */
 link_status_t link_poll(void);
 

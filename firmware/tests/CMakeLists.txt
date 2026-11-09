@@ -29,6 +29,10 @@ add_unity_test(test_portal_form ../src/setup/portal_form.c ../src/storage/device
                ../src/net/fingerprint.c)
 add_unity_test(test_http_resp ../src/net/http_resp.c)
 add_unity_test(test_app_state ../src/app/app_state.c ../src/status/led_pattern.c)
+add_unity_test(test_app_timing ../src/app/app_timing.c ../src/app/app_state.c
+               ../src/status/led_pattern.c)
+add_unity_test(test_jitter ../src/audio/jitter.c)
+add_unity_test(test_http_req ../src/net/http_req.c ../src/net/chunkq.c)
 
 find_library(LIBM m)
 if(LIBM)

@@ -33,7 +33,8 @@ set(GPS_SOURCES
 )
 set(INPUT_SOURCES src/input/input.c)
 set(MIC_SOURCES src/audio/mic.c src/audio/pcm.c src/audio/volume.c src/audio/wav.c)
-set(AMP_SOURCES src/audio/speaker.c src/audio/cues.c src/audio/pcm.c src/audio/volume.c)
+set(AMP_SOURCES src/audio/speaker.c src/audio/cues.c src/audio/pcm.c src/audio/volume.c
+        src/audio/jitter.c)
 
 # Every firmware image shares flags, includes and USB serial logging.
 function(chatnav_firmware name)
@@ -74,17 +75,25 @@ set(NET_SOURCES
         src/net/tls_client.c
         src/net/mbedtls_time.c
         src/net/http_resp.c
+        src/net/http_req.c
+        src/net/chunkq.c
         src/net/http_stream.c
+        src/net/uplink.c
+        src/net/fix_upload.c
         src/net/link.c
 )
 
 chatnav_firmware(chatnav
         SOURCES src/main.c src/status/led.c src/status/led_pattern.c
-                src/app/app_state.c src/app/boot_hold.c ${INPUT_SOURCES}
+                src/app/app_state.c src/app/app_timing.c src/app/boot_hold.c src/app/voice.c
+                ${INPUT_SOURCES} ${GPS_SOURCES}
+                src/audio/mic.c src/audio/wav.c src/audio/playback.c ${AMP_SOURCES}
                 src/storage/device_config.c src/storage/flash_memory.c
                 ${SETUP_SOURCES} ${NET_SOURCES}
+        PIO i2s_in.pio i2s_out.pio
         LIBS pico_cyw43_arch_lwip_threadsafe_background pico_lwip_mbedtls pico_mbedtls
              pico_flash hardware_flash hardware_watchdog hardware_gpio
+             hardware_pio hardware_dma hardware_irq hardware_clocks hardware_uart
 )
 
 chatnav_firmware(diag_gps

@@ -30,6 +30,8 @@
 #define VOLUME_SAVE_DELAY_S 5
 #define SETUP_HOLD_S 10
 #define QUERY_TIMEOUT_S 20
+#define DOUBLE_PRESS_MS 600 /* U13: second press this soon after a cancelled tap */
+#define REPLY_TAIL_MS 80    /* let the last DMA block play before leaving PLAYING */
 #define WIFI_CONNECT_TIMEOUT_S 30
 #define SERVER_CONNECT_TIMEOUT_S 15
 #define SETUP_AP_SSID "ChatNav-Setup"
