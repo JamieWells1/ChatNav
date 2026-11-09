@@ -8,7 +8,7 @@
 #define ERROR_H
 
 /* Return codes: 0 = success, negative = error, grouped by module in ranges of 100.
- * -1xx common, -2xx WiFi, -3xx HTTP, -4xx flash, -5xx audio, -6xx GPS, -7xx input */
+ * -1xx common, -2xx WiFi, -3xx HTTP, -4xx flash, -5xx audio, -6xx GPS, -7xx input, -8xx TLS */
 
 typedef enum {
     RC_OK = 0,
@@ -56,6 +56,14 @@ typedef enum {
     RC_GPS_NO_DATA = -600,        /* no bytes from the module */
     RC_GPS_BAD_CHECKSUM = -601,
     RC_GPS_NO_FIX = -602,
+
+    RC_TLS_CONFIG_FAILED = -800,  /* could not create the TLS client config */
+    RC_TLS_DNS_FAILED = -801,
+    RC_TLS_CONNECT_FAILED = -802, /* TCP connect or handshake failed */
+    RC_TLS_PIN_MISMATCH = -803,   /* server cert fingerprint differs from the stored pin */
+    RC_TLS_NO_CERT = -804,        /* handshake finished without a peer certificate */
+    RC_TLS_WRITE_FAILED = -805,
+    RC_TLS_CLOSED = -806,         /* peer or lwIP closed the connection */
 } ReturnCode;
 
 #define RC_SUCCESS(rc) ((rc) == RC_OK)

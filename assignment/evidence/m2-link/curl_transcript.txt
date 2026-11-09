@@ -1,0 +1,73 @@
+# Throwaway certificate fingerprint (what the device portal expects):
+6C:3A:FA:F8:A0:74:65:50:43:5B:AF:1C:5F:49:51:57:74:15:D5:81:02:A7:AC:FC:4D:FA:D8:F2:01:4D:4A:7F
+
+# 1. TLS: the server certificate's SHA-256 as the client sees it
+seen:     6C:3A:FA:F8:A0:74:65:50:43:5B:AF:1C:5F:49:51:57:74:15:D5:81:02:A7:AC:FC:4D:FA:D8:F2:01:4D:4A:7F
+expected: 6C:3A:FA:F8:A0:74:65:50:43:5B:AF:1C:5F:49:51:57:74:15:D5:81:02:A7:AC:FC:4D:FA:D8:F2:01:4D:4A:7F
+PIN MATCH
+
+$ curl https://localhost (no trust anchor, self-signed cert must be refused)
+curl: (60) SSL certificate problem: self signed certificate
+More details here: https://curl.se/docs/sslcerts.html
+
+curl failed to verify the legitimacy of the server and therefore could not
+establish a secure connection to it. To learn more about this situation and
+how to fix it, please visit the web page mentioned above.
+http 000
+[exit 60]
+
+$ curl --cacert server.crt /v1/health (TLS ok, no auth needed)
+* SSL connection using TLSv1.3 / AEAD-AES256-GCM-SHA384 / [blank] / UNDEF
+ok
+http 200
+[exit 0]
+
+$ curl /v1/whoami with NO token
+{"detail":"invalid or missing device token"}
+http 401
+[exit 0]
+
+$ curl /v1/whoami with a WRONG token
+{"detail":"invalid or missing device token"}
+http 401
+[exit 0]
+
+$ curl /v1/whoami with the VALID token
+proof-device
+http 200
+[exit 0]
+
+# 2. Hashed at rest: neither the token nor its secret appears in the database
+ok: no plaintext in proof.db
+
+# 3. tools/fake_device.py (pinned TLS, one connection, bearer token)
+
+$ fake_device with the right pin and token
+[FAKE] TLS up to localhost:8443, certificate pin matched
+[FAKE] health: 200 ok
+[FAKE] whoami: 200 proof-device
+[exit 0]
+
+$ fake_device with a WRONG pin (must refuse before sending the token)
+[FAKE] PIN MISMATCH, refusing server: server cert sha256 6C:3A:FA:F8:A0:74:65:50:43:5B:AF:1C:5F:49:51:57:74:15:D5:81:02:A7:AC:FC:4D:FA:D8:F2:01:4D:4A:7F does not match the pin
+[exit 3]
+
+$ fake_device with the right pin and a WRONG token
+[FAKE] TLS up to localhost:8443, certificate pin matched
+[FAKE] health: 200 ok
+[FAKE] whoami: 401 {"detail":"invalid or missing device token"}
+[exit 1]
+
+$ revoke the device
+Device 'proof-device' revoked
+[exit 0]
+
+$ curl /v1/whoami with the REVOKED token
+{"detail":"invalid or missing device token"}
+http 401
+[exit 0]
+
+$ curl /v1/health still open after revoke
+ok
+http 200
+[exit 0]

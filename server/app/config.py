@@ -5,7 +5,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Secrets and paths (from .env)
-    device_token: str = ""
     stt_api_key: str = ""
     llm_api_key: str = ""
     tts_api_key: str = ""

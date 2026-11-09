@@ -5,8 +5,8 @@
 
 #include "status/led_pattern.h"
 
-/* Returns false if the CYW43 chip fails to start. */
-bool led_init(void);
+/* The LED is wired to the CYW43 chip: call wifi_init() first. */
+void led_init(void);
 
 /* Direct control; cancels any pattern. */
 void led_set(bool on);

@@ -29,8 +29,7 @@ compile_commands.json
 *.crt
 *.p12
 
-# Evidence with personal data (GPS logs, recordings, exports)
-evidence/
+# Evidence is committed; raw GPS logs and recordings stay ignored via the patterns below
 *.nmea
 *.wav
 

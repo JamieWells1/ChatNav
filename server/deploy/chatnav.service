@@ -1,0 +1,28 @@
+[Unit]
+Description=ChatNav server
+After=network.target
+
+[Service]
+Type=simple
+User=chatnav
+Group=chatnav
+WorkingDirectory=/opt/chatnav/server
+EnvironmentFile=/etc/chatnav/chatnav.env
+Environment=PYTHONUNBUFFERED=1
+# Loopback only, outside the Photon/Delta range 8080-8090. nginx terminates TLS on 443.
+ExecStart=/opt/chatnav/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8100 --workers 1
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/chatnav
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chatnav
+
+[Install]
+WantedBy=multi-user.target

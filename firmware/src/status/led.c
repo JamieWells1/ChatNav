@@ -8,10 +8,8 @@
 static led_mode_t mode = LED_OFF;
 static bool level;
 
-bool led_init(void) {
-    if (cyw43_arch_init() != 0) return false;
+void led_init(void) {
     led_set_mode(LED_OFF);
-    return true;
 }
 
 void led_set(bool on) {

@@ -23,6 +23,12 @@ add_unity_test(test_pcm ../src/audio/pcm.c ../src/audio/volume.c ../src/audio/wa
 add_unity_test(test_volume ../src/audio/volume.c)
 add_unity_test(test_cues ../src/audio/cues.c ../src/audio/pcm.c ../src/audio/volume.c)
 add_unity_test(test_led_pattern ../src/status/led_pattern.c)
+add_unity_test(test_device_config ../src/storage/device_config.c)
+add_unity_test(test_fingerprint ../src/net/fingerprint.c)
+add_unity_test(test_portal_form ../src/setup/portal_form.c ../src/storage/device_config.c
+               ../src/net/fingerprint.c)
+add_unity_test(test_http_resp ../src/net/http_resp.c)
+add_unity_test(test_app_state ../src/app/app_state.c ../src/status/led_pattern.c)
 
 find_library(LIBM m)
 if(LIBM)

@@ -26,9 +26,14 @@
 #define MAX_UTTERANCE_S 10
 #define PLAYBACK_PREBUFFER_MS 300
 #define VOLUME_STEPS 16
+#define DEFAULT_VOLUME_STEP 8
 #define VOLUME_SAVE_DELAY_S 5
 #define SETUP_HOLD_S 10
 #define QUERY_TIMEOUT_S 20
+#define WIFI_CONNECT_TIMEOUT_S 30
+#define SERVER_CONNECT_TIMEOUT_S 15
+#define SETUP_AP_SSID "ChatNav-Setup"
+#define SETUP_AP_PASSWORD "chatnav-setup" /* WPA2; the form carries the device token */
 #define DEVICE_FIX_BUFFER 1800
 #define FIX_UPLOAD_INTERVAL_S 5
 #define MIN_SATS 4

@@ -60,9 +60,31 @@ function(chatnav_firmware name)
     pico_add_extra_outputs(${name})
 endfunction()
 
+set(SETUP_SOURCES
+        src/setup/portal.c
+        src/setup/portal_form.c
+        src/setup/portal_html.c
+        src/setup/portal_http.c
+        src/setup/dns_server.c
+        src/setup/dhcpserver.c
+)
+set(NET_SOURCES
+        src/net/wifi.c
+        src/net/fingerprint.c
+        src/net/tls_client.c
+        src/net/mbedtls_time.c
+        src/net/http_resp.c
+        src/net/http_stream.c
+        src/net/link.c
+)
+
 chatnav_firmware(chatnav
         SOURCES src/main.c src/status/led.c src/status/led_pattern.c
-        LIBS pico_cyw43_arch_lwip_threadsafe_background
+                src/app/app_state.c src/app/boot_hold.c ${INPUT_SOURCES}
+                src/storage/device_config.c src/storage/flash_memory.c
+                ${SETUP_SOURCES} ${NET_SOURCES}
+        LIBS pico_cyw43_arch_lwip_threadsafe_background pico_lwip_mbedtls pico_mbedtls
+             pico_flash hardware_flash hardware_watchdog hardware_gpio
 )
 
 chatnav_firmware(diag_gps

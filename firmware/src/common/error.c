@@ -53,6 +53,14 @@ const char *rc_to_string(ReturnCode rc) {
         case RC_GPS_BAD_CHECKSUM: return "GPS: Bad checksum";
         case RC_GPS_NO_FIX: return "GPS: No fix";
 
+        case RC_TLS_CONFIG_FAILED: return "TLS: Config failed";
+        case RC_TLS_DNS_FAILED: return "TLS: DNS failed";
+        case RC_TLS_CONNECT_FAILED: return "TLS: Connect failed";
+        case RC_TLS_PIN_MISMATCH: return "TLS: Certificate pin mismatch";
+        case RC_TLS_NO_CERT: return "TLS: No peer certificate";
+        case RC_TLS_WRITE_FAILED: return "TLS: Write failed";
+        case RC_TLS_CLOSED: return "TLS: Connection closed";
+
         default: return "Unknown return code";
     }
 }
